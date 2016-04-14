@@ -95,6 +95,7 @@ public class Simulator {
      * placing the point within the circle centered at the place at which the person currently is.
      */
     private static final int MAX_LOCATION_NOISE_RADIUS = 50;
+    private static final int MAX_LOCATION_NOISE_WHILE_TRAVELLING = 5;
 
     /**
      * Max Noise in the time of leaving for work place and arriving at work place (in minutes)
@@ -313,7 +314,10 @@ public class Simulator {
                         locationVector.add(currentLocation);
                     }
 
-                    // If the current Time is between our conveyance time , so we generate according data points
+                    // If the current Time is between our conveyance time , so we generate according data points on the
+                    // route , traffic condition are automatically simulated by noise in leaving and arriving time.
+
+                    // The speed is assumed to be constant during that period
                     if (currentTime.isAfter(leavingFromHomeTime) && currentTime.isBefore(arrivingAtWorkTime)) {
                         long timeElapsed = Duration.between(leavingFromHomeTime, currentTime).toMinutes();
                         long totalConveyanceTime = Duration.between(leavingFromHomeTime, arrivingAtWorkTime).toMinutes();
@@ -322,8 +326,8 @@ public class Simulator {
                         int numSteps = (int) (fractionOfRouteCovered * ROUTE.size());
 
                         Iterator<Steps> itr = ROUTE.iterator();
-                        int xCoordinate = X_HOME;
-                        int yCoordinate = Y_HOME;
+                        double xCoordinate = X_HOME;
+                        double yCoordinate = Y_HOME;
 
                         while (itr.hasNext() && numSteps > 0) {
                             switch (itr.next()) {
@@ -342,8 +346,14 @@ public class Simulator {
                             }
                             numSteps--;
                         }
+                        final int locationNoise = new Random().nextInt(MAX_LOCATION_NOISE_WHILE_TRAVELLING+1);
+                        final int randomTheta = new Random().nextInt(361);
+                        xCoordinate = xCoordinate + (locationNoise*Math.cos(Math.toRadians(randomTheta)));
+                        yCoordinate = yCoordinate + (locationNoise*Math.sin(Math.toRadians(randomTheta)));
                         locationVector.add(new Point(xCoordinate, yCoordinate));
                     }
+
+                    // While the person is at work , the data is generated around the WORK Point
                     if (currentTime.isAfter(arrivingAtWorkTime) && currentTime.isBefore(leavingFromWorkTime)) {
                         int randomTheta = new Random().nextInt(361);
                         int noiseRadius = new Random().nextInt(MAX_LOCATION_NOISE_RADIUS);
@@ -355,6 +365,9 @@ public class Simulator {
                         Point currentLocation = new Point(xCoordinate, yCoordinate);
                         locationVector.add(currentLocation);
                     }
+
+
+                    // The Time period between leaving from Work and Arriving at Home.
                     if (currentTime.isAfter(leavingFromWorkTime) && currentTime.isBefore(arrivingAtHomeTime)) {
 
                         long timeElapsed = Duration.between(leavingFromWorkTime, currentTime).toMinutes();
@@ -364,8 +377,8 @@ public class Simulator {
                         int numSteps = (int) (fractionOfRouteCovered * ROUTE.size());
 
                         ListIterator<Steps> itr = ROUTE.listIterator(ROUTE.size());
-                        int xCoordinate = X_WORK;
-                        int yCoordinate = Y_WORK;
+                        double xCoordinate = X_WORK;
+                        double yCoordinate = Y_WORK;
 
                         while (itr.hasPrevious() && numSteps > 0) {
                             switch (itr.previous()) {
@@ -384,8 +397,15 @@ public class Simulator {
                             }
                             numSteps--;
                         }
+                        final int locationNoise = new Random().nextInt(MAX_LOCATION_NOISE_WHILE_TRAVELLING+1);
+                        final int randomTheta = new Random().nextInt(361);
+                        xCoordinate = xCoordinate + (locationNoise*Math.cos(Math.toRadians(randomTheta)));
+                        yCoordinate = yCoordinate + (locationNoise*Math.sin(Math.toRadians(randomTheta)));
+                        locationVector.add(new Point(xCoordinate, yCoordinate));
                         locationVector.add(new Point(xCoordinate, yCoordinate));
                     }
+
+                    // After arriving at home and before leaving for work.
                     if (currentTime.isAfter(arrivingAtHomeTime) && currentTime.isBefore(LocalTime.of(0, 0, 0))) {
 
                         int randomTheta = new Random().nextInt(361);
@@ -424,7 +444,10 @@ public class Simulator {
 
                         Point currentLocation = new Point(xCoordinate, yCoordinate);
                         locationVector.add(currentLocation);
-                    } else {
+                    }
+
+                    // When not at home , generate points randomly
+                    else {
                         double xCoordinate = new Random().nextInt(1000);
                         double yCoordinate = new Random().nextInt(1000);
 
