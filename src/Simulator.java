@@ -1,4 +1,12 @@
 import com.sun.org.apache.bcel.internal.generic.BREAKPOINT;
+import com.sun.org.apache.xpath.internal.axes.IteratorPool;
+import net.sf.javaml.clustering.Clusterer;
+import net.sf.javaml.clustering.DensityBasedSpatialClustering;
+import net.sf.javaml.core.Dataset;
+import net.sf.javaml.core.DefaultDataset;
+import net.sf.javaml.core.Instance;
+import net.sf.javaml.core.SparseInstance;
+import org.jfree.chart.ChartColor;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartFrame;
 import org.jfree.chart.JFreeChart;
@@ -127,6 +135,9 @@ public class Simulator {
 
     public static Vector<Point> locationVector = new Vector<>();
 
+    public static final int KEY_X_COORDINATE_ATTRIBUTE = 0;
+    public static final int KEY_Y_COORDINATE_ATTRIBUTE = 1;
+
     public Simulator() {
 
     }
@@ -190,25 +201,25 @@ public class Simulator {
                 boolean willLeaveWorkEarly = (random.nextInt(2) == 1);
                 boolean willArriveAtHomeEarly = (random.nextInt(2) == 1);
 
-                if (willLeaveHomeEarly){
+                if (willLeaveHomeEarly) {
                     leavingFromHomeTime = LEAVING_TIME.minusMinutes(leaving_from_home_time_noise);
                 } else {
                     leavingFromHomeTime = LEAVING_TIME.plusMinutes(leaving_from_home_time_noise);
                 }
 
-                if (willArriveAtWorkEarly){
+                if (willArriveAtWorkEarly) {
                     arrivingAtWorkTime = WORK_TIME_START.minusMinutes(arriving_at_work_time_noise);
                 } else {
                     arrivingAtWorkTime = WORK_TIME_START.plusMinutes(arriving_at_work_time_noise);
                 }
 
-                if (willLeaveWorkEarly){
+                if (willLeaveWorkEarly) {
                     leavingFromWorkTime = WORK_TIME_END.minusMinutes(leaving_from_work_time_noise);
                 } else {
                     leavingFromWorkTime = WORK_TIME_END.plusMinutes(leaving_from_work_time_noise);
                 }
 
-                if (willArriveAtHomeEarly){
+                if (willArriveAtHomeEarly) {
                     arrivingAtHomeTime = ARRIVING_TIME.minusMinutes(arriving_at_home_time_noise);
                 } else {
                     arrivingAtHomeTime = ARRIVING_TIME.plusMinutes(arriving_at_home_time_noise);
@@ -249,35 +260,82 @@ public class Simulator {
         }
         System.out.println("Simulation Ended...");
 
+        // Create instances from the dataset for the learning algorithm
+        Dataset mlDataset = createMLDataset();
+
+        // Big test time , lets feed the data into the algorithm
+        Clusterer dbscanClusterer = new DensityBasedSpatialClustering(0.01,12);
+        Dataset[] clusters = dbscanClusterer.cluster(mlDataset);
+
+        XYSeriesCollection graphData = new XYSeriesCollection();
+
+        // Now lets plot the clusters onto the graph
+        for (int i = 0; i < clusters.length; i++) {
+            XYSeries currentCluster = new XYSeries("Cluster " + i);
+            Iterator<Instance> clusterIterator = clusters[i].iterator();
+
+            while (clusterIterator.hasNext()) {
+                Instance currentInstance = clusterIterator.next();
+                currentCluster.add(currentInstance.get(KEY_X_COORDINATE_ATTRIBUTE), currentInstance.get(KEY_Y_COORDINATE_ATTRIBUTE));
+            }
+            graphData.addSeries(currentCluster);
+        }
+
         JFreeChart chart = ChartFactory.createScatterPlot(
                 "Location Plot",
                 "Latitude",
                 "Longitude",
-                createDataset(),
+                graphData,
                 PlotOrientation.VERTICAL,
                 true,
                 true,
                 false
         );
 
-        Shape ellipse2D = new  Ellipse2D.Double(0,0,2,2);
+        Shape ellipse2D = new Ellipse2D.Double(0, 0, 2, 2);
+
 
         XYPlot xyPlot = (XYPlot) chart.getPlot();
         XYItemRenderer renderer = xyPlot.getRenderer();
-        renderer.setSeriesShape(0,ellipse2D);
-        ChartFrame chartFrame = new ChartFrame("Location Chart Frame" , chart);
+
+        for (int i = 0; i < clusters.length; i++) {
+            Random random = new Random();
+            Paint paint  = new ChartColor(random.nextInt(256) , random.nextInt(256) , random.nextInt(256));
+            renderer.setSeriesShape(i,ellipse2D);
+            renderer.setSeriesPaint(i ,paint);
+        }
+
+        ChartFrame chartFrame = new ChartFrame("Location Chart Frame", chart);
         chartFrame.pack();
         chartFrame.setVisible(true);
+
     }
 
+    private static Dataset createMLDataset() {
+
+        Dataset mlDataset = new DefaultDataset();
+        Iterator<Point> iterator = locationVector.iterator();
+
+        while (iterator.hasNext()) {
+            Instance instance = new SparseInstance(2);
+            Point currentPoint = iterator.next();
+
+            instance.put(KEY_X_COORDINATE_ATTRIBUTE, currentPoint.x);
+            instance.put(KEY_Y_COORDINATE_ATTRIBUTE, currentPoint.y);
+
+            mlDataset.add(instance);
+        }
+
+        return mlDataset;
+    }
 
     private static XYDataset createDataset() {
         XYSeriesCollection result = new XYSeriesCollection();
         XYSeries series = new XYSeries("Location Data");
         Iterator<Point> iterator = locationVector.iterator();
-        while (iterator.hasNext()){
+        while (iterator.hasNext()) {
             Point p = iterator.next();
-            series.add(p.x,p.y);
+            series.add(p.x, p.y);
         }
         result.addSeries(series);
         return result;
@@ -285,8 +343,6 @@ public class Simulator {
 
     // Simulation will be performed on separate thread
     public static class SimulationThread extends Thread {
-
-
 
         @Override
         public void run() {
@@ -346,10 +402,10 @@ public class Simulator {
                             }
                             numSteps--;
                         }
-                        final int locationNoise = new Random().nextInt(MAX_LOCATION_NOISE_WHILE_TRAVELLING+1);
+                        final int locationNoise = new Random().nextInt(MAX_LOCATION_NOISE_WHILE_TRAVELLING + 1);
                         final int randomTheta = new Random().nextInt(361);
-                        xCoordinate = xCoordinate + (locationNoise*Math.cos(Math.toRadians(randomTheta)));
-                        yCoordinate = yCoordinate + (locationNoise*Math.sin(Math.toRadians(randomTheta)));
+                        xCoordinate = xCoordinate + (locationNoise * Math.cos(Math.toRadians(randomTheta)));
+                        yCoordinate = yCoordinate + (locationNoise * Math.sin(Math.toRadians(randomTheta)));
                         locationVector.add(new Point(xCoordinate, yCoordinate));
                     }
 
@@ -397,10 +453,10 @@ public class Simulator {
                             }
                             numSteps--;
                         }
-                        final int locationNoise = new Random().nextInt(MAX_LOCATION_NOISE_WHILE_TRAVELLING+1);
+                        final int locationNoise = new Random().nextInt(MAX_LOCATION_NOISE_WHILE_TRAVELLING + 1);
                         final int randomTheta = new Random().nextInt(361);
-                        xCoordinate = xCoordinate + (locationNoise*Math.cos(Math.toRadians(randomTheta)));
-                        yCoordinate = yCoordinate + (locationNoise*Math.sin(Math.toRadians(randomTheta)));
+                        xCoordinate = xCoordinate + (locationNoise * Math.cos(Math.toRadians(randomTheta)));
+                        yCoordinate = yCoordinate + (locationNoise * Math.sin(Math.toRadians(randomTheta)));
                         locationVector.add(new Point(xCoordinate, yCoordinate));
                         locationVector.add(new Point(xCoordinate, yCoordinate));
                     }
