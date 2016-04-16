@@ -39,6 +39,10 @@ public class Simulator {
     private static final int AREA_WIDTH = 1000;
     private static final int AREA_HEIGHT = 1000;
 
+    // Latitude Longitude information for each point on the grid
+    private static final double[][] latitude = new double[AREA_WIDTH][AREA_HEIGHT];
+    private static final double[][] longitude = new double[AREA_WIDTH][AREA_HEIGHT];
+
     // The coordinate of the person's home
     private static final int X_HOME = 879;
     private static final int Y_HOME = 901;
@@ -46,6 +50,10 @@ public class Simulator {
     // The coordinate of the person's work place
     private static final int X_WORK = 306;
     private static final int Y_WORK = 257;
+
+    // The Latitude and Longitude of the top left corner
+    private static final double LATITUDE_TOP_LEFT = 26.651212;
+    private static final double LONGITUDE_TOP_LEFT = 76.228002;
 
     // The working hours of the person will be from morning 9:00 AM to 5:00 PM
     // Just for simulation puposes we are considering the starting date to be 01/01/2016 (dd/mm/yyyy)
@@ -129,6 +137,24 @@ public class Simulator {
 
     public Simulator() {
 
+        // We fill the data of the corresponding lat long info.
+        latitude[0][0] = LATITUDE_TOP_LEFT;
+        longitude[0][0] = LONGITUDE_TOP_LEFT;
+
+        final double dx = 0.01;
+        final double dy = 0.01;
+
+        for (int i = 0; i < AREA_HEIGHT; i++) {
+            for (int j = 1; j < AREA_WIDTH; j++) {
+                latitude[i][j] = latitude[i][j - 1];
+                longitude[i][j] = longitude[i][j - 1] + (dx / 111) / Math.cos(latitude[i][j - 1] * (Math.PI / 180));
+            }
+            if (i < AREA_HEIGHT - 1) {
+                latitude[i + 1][0] = latitude[i][0] + (dy / 111);
+                longitude[i + 1][0] = longitude[i][0];
+            }
+        }
+
     }
 
     /**
@@ -190,25 +216,25 @@ public class Simulator {
                 boolean willLeaveWorkEarly = (random.nextInt(2) == 1);
                 boolean willArriveAtHomeEarly = (random.nextInt(2) == 1);
 
-                if (willLeaveHomeEarly){
+                if (willLeaveHomeEarly) {
                     leavingFromHomeTime = LEAVING_TIME.minusMinutes(leaving_from_home_time_noise);
                 } else {
                     leavingFromHomeTime = LEAVING_TIME.plusMinutes(leaving_from_home_time_noise);
                 }
 
-                if (willArriveAtWorkEarly){
+                if (willArriveAtWorkEarly) {
                     arrivingAtWorkTime = WORK_TIME_START.minusMinutes(arriving_at_work_time_noise);
                 } else {
                     arrivingAtWorkTime = WORK_TIME_START.plusMinutes(arriving_at_work_time_noise);
                 }
 
-                if (willLeaveWorkEarly){
+                if (willLeaveWorkEarly) {
                     leavingFromWorkTime = WORK_TIME_END.minusMinutes(leaving_from_work_time_noise);
                 } else {
                     leavingFromWorkTime = WORK_TIME_END.plusMinutes(leaving_from_work_time_noise);
                 }
 
-                if (willArriveAtHomeEarly){
+                if (willArriveAtHomeEarly) {
                     arrivingAtHomeTime = ARRIVING_TIME.minusMinutes(arriving_at_home_time_noise);
                 } else {
                     arrivingAtHomeTime = ARRIVING_TIME.plusMinutes(arriving_at_home_time_noise);
@@ -260,12 +286,12 @@ public class Simulator {
                 false
         );
 
-        Shape ellipse2D = new  Ellipse2D.Double(0,0,2,2);
+        Shape ellipse2D = new Ellipse2D.Double(0, 0, 2, 2);
 
         XYPlot xyPlot = (XYPlot) chart.getPlot();
         XYItemRenderer renderer = xyPlot.getRenderer();
-        renderer.setSeriesShape(0,ellipse2D);
-        ChartFrame chartFrame = new ChartFrame("Location Chart Frame" , chart);
+        renderer.setSeriesShape(0, ellipse2D);
+        ChartFrame chartFrame = new ChartFrame("Location Chart Frame", chart);
         chartFrame.pack();
         chartFrame.setVisible(true);
     }
@@ -275,9 +301,9 @@ public class Simulator {
         XYSeriesCollection result = new XYSeriesCollection();
         XYSeries series = new XYSeries("Location Data");
         Iterator<Point> iterator = locationVector.iterator();
-        while (iterator.hasNext()){
+        while (iterator.hasNext()) {
             Point p = iterator.next();
-            series.add(p.x,p.y);
+            series.add(p.x, p.y);
         }
         result.addSeries(series);
         return result;
@@ -285,7 +311,6 @@ public class Simulator {
 
     // Simulation will be performed on separate thread
     public static class SimulationThread extends Thread {
-
 
 
         @Override
@@ -310,7 +335,9 @@ public class Simulator {
                         double yCoordinate =
                                 (Y_HOME + noiseRadius * Math.sin(Math.toRadians(randomTheta)));
 
-                        Point currentLocation = new Point(xCoordinate, yCoordinate);
+                        final double currentLatitude = latitude[(int) xCoordinate][(int) yCoordinate];
+                        final double currentLongitude = longitude[(int) xCoordinate][(int) yCoordinate];
+                        Point currentLocation = new Point(currentLatitude , currentLongitude);
                         locationVector.add(currentLocation);
                     }
 
@@ -346,11 +373,15 @@ public class Simulator {
                             }
                             numSteps--;
                         }
-                        final int locationNoise = new Random().nextInt(MAX_LOCATION_NOISE_WHILE_TRAVELLING+1);
+                        final int locationNoise = new Random().nextInt(MAX_LOCATION_NOISE_WHILE_TRAVELLING + 1);
                         final int randomTheta = new Random().nextInt(361);
-                        xCoordinate = xCoordinate + (locationNoise*Math.cos(Math.toRadians(randomTheta)));
-                        yCoordinate = yCoordinate + (locationNoise*Math.sin(Math.toRadians(randomTheta)));
-                        locationVector.add(new Point(xCoordinate, yCoordinate));
+                        xCoordinate = xCoordinate + (locationNoise * Math.cos(Math.toRadians(randomTheta)));
+                        yCoordinate = yCoordinate + (locationNoise * Math.sin(Math.toRadians(randomTheta)));
+
+                        final double currentLatitude = latitude[(int) xCoordinate][(int) yCoordinate];
+                        final double currentLongitude = longitude[(int) xCoordinate][(int) yCoordinate];
+                        Point currentLocation = new Point(currentLatitude , currentLongitude);
+                        locationVector.add(currentLocation);
                     }
 
                     // While the person is at work , the data is generated around the WORK Point
@@ -362,7 +393,9 @@ public class Simulator {
                         double yCoordinate =
                                 (Y_WORK + noiseRadius * Math.sin(Math.toRadians(randomTheta)));
 
-                        Point currentLocation = new Point(xCoordinate, yCoordinate);
+                        final double currentLatitude = latitude[(int) xCoordinate][(int) yCoordinate];
+                        final double currentLongitude = longitude[(int) xCoordinate][(int) yCoordinate];
+                        Point currentLocation = new Point(currentLatitude , currentLongitude);
                         locationVector.add(currentLocation);
                     }
 
@@ -397,12 +430,15 @@ public class Simulator {
                             }
                             numSteps--;
                         }
-                        final int locationNoise = new Random().nextInt(MAX_LOCATION_NOISE_WHILE_TRAVELLING+1);
+                        final int locationNoise = new Random().nextInt(MAX_LOCATION_NOISE_WHILE_TRAVELLING + 1);
                         final int randomTheta = new Random().nextInt(361);
-                        xCoordinate = xCoordinate + (locationNoise*Math.cos(Math.toRadians(randomTheta)));
-                        yCoordinate = yCoordinate + (locationNoise*Math.sin(Math.toRadians(randomTheta)));
-                        locationVector.add(new Point(xCoordinate, yCoordinate));
-                        locationVector.add(new Point(xCoordinate, yCoordinate));
+                        xCoordinate = xCoordinate + (locationNoise * Math.cos(Math.toRadians(randomTheta)));
+                        yCoordinate = yCoordinate + (locationNoise * Math.sin(Math.toRadians(randomTheta)));
+
+                        final double currentLatitude = latitude[(int) xCoordinate][(int) yCoordinate];
+                        final double currentLongitude = longitude[(int) xCoordinate][(int) yCoordinate];
+                        Point currentLocation = new Point(currentLatitude , currentLongitude);
+                        locationVector.add(currentLocation);
                     }
 
                     // After arriving at home and before leaving for work.
@@ -415,7 +451,9 @@ public class Simulator {
                         double yCoordinate =
                                 (Y_HOME + noiseRadius * Math.sin(Math.toRadians(randomTheta)));
 
-                        Point currentLocation = new Point(xCoordinate, yCoordinate);
+                        final double currentLatitude = latitude[(int) xCoordinate][(int) yCoordinate];
+                        final double currentLongitude = longitude[(int) xCoordinate][(int) yCoordinate];
+                        Point currentLocation = new Point(currentLatitude , currentLongitude);
                         locationVector.add(currentLocation);
                     }
                 } else {
@@ -430,7 +468,10 @@ public class Simulator {
                         double yCoordinate =
                                 (Y_HOME + noiseRadius * Math.sin(Math.toRadians(randomTheta)));
 
-                        Point currentLocation = new Point(xCoordinate, yCoordinate);
+
+                        final double currentLatitude = latitude[(int) xCoordinate][(int) yCoordinate];
+                        final double currentLongitude = longitude[(int) xCoordinate][(int) yCoordinate];
+                        Point currentLocation = new Point(currentLatitude , currentLongitude);
                         locationVector.add(currentLocation);
                     }
                     // If he is going to stay at home we generate according data
@@ -442,7 +483,10 @@ public class Simulator {
                         double yCoordinate =
                                 (Y_HOME + noiseRadius * Math.sin(Math.toRadians(randomTheta)));
 
-                        Point currentLocation = new Point(xCoordinate, yCoordinate);
+
+                        final double currentLatitude = latitude[(int) xCoordinate][(int) yCoordinate];
+                        final double currentLongitude = longitude[(int) xCoordinate][(int) yCoordinate];
+                        Point currentLocation = new Point(currentLatitude , currentLongitude);
                         locationVector.add(currentLocation);
                     }
 
@@ -451,7 +495,10 @@ public class Simulator {
                         double xCoordinate = new Random().nextInt(1000);
                         double yCoordinate = new Random().nextInt(1000);
 
-                        locationVector.add(new Point(xCoordinate, yCoordinate));
+                        final double currentLatitude = latitude[(int) xCoordinate][(int) yCoordinate];
+                        final double currentLongitude = longitude[(int) xCoordinate][(int) yCoordinate];
+                        Point currentLocation = new Point(currentLatitude , currentLongitude);
+                        locationVector.add(currentLocation);
                     }
                 }
                 System.out.println(locationVector.size());
