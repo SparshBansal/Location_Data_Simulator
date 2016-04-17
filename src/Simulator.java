@@ -1,4 +1,12 @@
 import com.sun.org.apache.bcel.internal.generic.BREAKPOINT;
+import com.sun.org.apache.xpath.internal.axes.IteratorPool;
+import net.sf.javaml.clustering.Clusterer;
+import net.sf.javaml.clustering.DensityBasedSpatialClustering;
+import net.sf.javaml.core.Dataset;
+import net.sf.javaml.core.DefaultDataset;
+import net.sf.javaml.core.Instance;
+import net.sf.javaml.core.SparseInstance;
+import org.jfree.chart.ChartColor;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartFrame;
 import org.jfree.chart.JFreeChart;
@@ -135,28 +143,6 @@ public class Simulator {
 
     public static Vector<Point> locationVector = new Vector<>();
 
-    public Simulator() {
-
-        // We fill the data of the corresponding lat long info.
-        latitude[0][0] = LATITUDE_TOP_LEFT;
-        longitude[0][0] = LONGITUDE_TOP_LEFT;
-
-        final double dx = 0.01;
-        final double dy = 0.01;
-
-        for (int i = 0; i < AREA_HEIGHT; i++) {
-            for (int j = 1; j < AREA_WIDTH; j++) {
-                latitude[i][j] = latitude[i][j - 1];
-                longitude[i][j] = longitude[i][j - 1] + (dx / 111) / Math.cos(latitude[i][j - 1] * (Math.PI / 180));
-            }
-            if (i < AREA_HEIGHT - 1) {
-                latitude[i + 1][0] = latitude[i][0] + (dy / 111);
-                longitude[i + 1][0] = longitude[i][0];
-            }
-        }
-
-    }
-
     /**
      * Helper method to generate a random route from home to work and back , Route will remain constant for
      * one run of simulation.
@@ -250,13 +236,16 @@ public class Simulator {
         }
     }
 
-    public static void main(String args[]) {
-
+    private static void initialize() {
         currentDayDateTime = FIRST_DAY;
-        // We also need to to generate a route from his home to work
         generateRoute();
         generateValuesForCurrentDay();
+        generateLatitudeLongitudeLocations();
+    }
 
+    public static void main(String args[]) {
+
+        initialize();
         Scanner input = new Scanner(System.in);
 
         System.out.println("Enter the number of Days you want to sample : ");
@@ -296,8 +285,39 @@ public class Simulator {
         chartFrame.setVisible(true);
     }
 
+    private static void generateLatitudeLongitudeLocations() {
+        // We fill the data of the corresponding lat long info.
+        latitude[0][0] = LATITUDE_TOP_LEFT;
+        longitude[0][0] = LONGITUDE_TOP_LEFT;
+
+        final double dx = 0.01;
+        final double dy = 0.01;
+
+        for (int i = 0; i < AREA_HEIGHT; i++) {
+            for (int j = 1; j < AREA_WIDTH; j++) {
+                latitude[i][j] = latitude[i][j - 1];
+                longitude[i][j] = longitude[i][j - 1] + ((dx / 111) / Math.cos(latitude[i][j - 1] * (Math.PI / 180)));
+            }
+            if (i < AREA_HEIGHT - 1) {
+                latitude[i + 1][0] = latitude[i][0] + (dy / 111);
+                longitude[i + 1][0] = longitude[i][0];
+            }
+        }
+    }
+
 
     private static XYDataset createDataset() {
+
+        System.out.println("Location Data Number of Points : " + locationVector.size());
+
+        {
+            Iterator<Point> iterator = locationVector.iterator();
+            while (iterator.hasNext()) {
+                final Point currentPoint = iterator.next();
+                System.out.println(currentPoint.x + " " + currentPoint.y);
+            }
+        }
+
         XYSeriesCollection result = new XYSeriesCollection();
         XYSeries series = new XYSeries("Location Data");
         Iterator<Point> iterator = locationVector.iterator();
@@ -337,7 +357,7 @@ public class Simulator {
 
                         final double currentLatitude = latitude[(int) xCoordinate][(int) yCoordinate];
                         final double currentLongitude = longitude[(int) xCoordinate][(int) yCoordinate];
-                        Point currentLocation = new Point(currentLatitude , currentLongitude);
+                        Point currentLocation = new Point(currentLatitude, currentLongitude);
                         locationVector.add(currentLocation);
                     }
 
@@ -380,7 +400,7 @@ public class Simulator {
 
                         final double currentLatitude = latitude[(int) xCoordinate][(int) yCoordinate];
                         final double currentLongitude = longitude[(int) xCoordinate][(int) yCoordinate];
-                        Point currentLocation = new Point(currentLatitude , currentLongitude);
+                        Point currentLocation = new Point(currentLatitude, currentLongitude);
                         locationVector.add(currentLocation);
                     }
 
@@ -395,7 +415,7 @@ public class Simulator {
 
                         final double currentLatitude = latitude[(int) xCoordinate][(int) yCoordinate];
                         final double currentLongitude = longitude[(int) xCoordinate][(int) yCoordinate];
-                        Point currentLocation = new Point(currentLatitude , currentLongitude);
+                        Point currentLocation = new Point(currentLatitude, currentLongitude);
                         locationVector.add(currentLocation);
                     }
 
@@ -437,7 +457,7 @@ public class Simulator {
 
                         final double currentLatitude = latitude[(int) xCoordinate][(int) yCoordinate];
                         final double currentLongitude = longitude[(int) xCoordinate][(int) yCoordinate];
-                        Point currentLocation = new Point(currentLatitude , currentLongitude);
+                        Point currentLocation = new Point(currentLatitude, currentLongitude);
                         locationVector.add(currentLocation);
                     }
 
@@ -453,7 +473,7 @@ public class Simulator {
 
                         final double currentLatitude = latitude[(int) xCoordinate][(int) yCoordinate];
                         final double currentLongitude = longitude[(int) xCoordinate][(int) yCoordinate];
-                        Point currentLocation = new Point(currentLatitude , currentLongitude);
+                        Point currentLocation = new Point(currentLatitude, currentLongitude);
                         locationVector.add(currentLocation);
                     }
                 } else {
@@ -471,7 +491,7 @@ public class Simulator {
 
                         final double currentLatitude = latitude[(int) xCoordinate][(int) yCoordinate];
                         final double currentLongitude = longitude[(int) xCoordinate][(int) yCoordinate];
-                        Point currentLocation = new Point(currentLatitude , currentLongitude);
+                        Point currentLocation = new Point(currentLatitude, currentLongitude);
                         locationVector.add(currentLocation);
                     }
                     // If he is going to stay at home we generate according data
@@ -486,7 +506,7 @@ public class Simulator {
 
                         final double currentLatitude = latitude[(int) xCoordinate][(int) yCoordinate];
                         final double currentLongitude = longitude[(int) xCoordinate][(int) yCoordinate];
-                        Point currentLocation = new Point(currentLatitude , currentLongitude);
+                        Point currentLocation = new Point(currentLatitude, currentLongitude);
                         locationVector.add(currentLocation);
                     }
 
@@ -497,11 +517,10 @@ public class Simulator {
 
                         final double currentLatitude = latitude[(int) xCoordinate][(int) yCoordinate];
                         final double currentLongitude = longitude[(int) xCoordinate][(int) yCoordinate];
-                        Point currentLocation = new Point(currentLatitude , currentLongitude);
+                        Point currentLocation = new Point(currentLatitude, currentLongitude);
                         locationVector.add(currentLocation);
                     }
                 }
-                System.out.println(locationVector.size());
                 // Now we increment the currentDayDateTime by sampling period
                 if (currentDayDateTime.plusMinutes(SAMPLING_PERIOD).getDayOfWeek() !=
                         currentDayDateTime.getDayOfWeek()) {
