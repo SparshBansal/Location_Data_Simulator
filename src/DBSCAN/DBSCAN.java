@@ -78,7 +78,7 @@ public class DBSCAN extends AbstractDensityBasedClustering implements Clusterer 
     public Dataset[] cluster(Dataset data) {
         this.originalData = data;
         if (this.dm == null) {
-            this.dm = new NormalizedEuclideanDistance(this.originalData);
+            this.dm = new Distance.NormalizedEuclideanDistance(this.originalData);
         }
 
         this.clusterID = 0;
