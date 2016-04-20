@@ -21,7 +21,7 @@ abstract class AbstractDensityBasedClustering {
         ArrayList epsilonRange_List = new ArrayList();
 
         for(int i = 0; i < this.dataset.size(); ++i) {
-            AbstractDensityBasedClustering.DataObject tmp = (AbstractDensityBasedClustering.DataObject)this.dataset.get(i);
+            AbstractDensityBasedClustering.DataObject tmp = this.dataset.get(i);
             double distance = this.dm.measure(tmp.instance, inst.instance);
             if(distance < epsilon) {
                 epsilonRange_List.add(tmp);
@@ -32,7 +32,7 @@ abstract class AbstractDensityBasedClustering {
     }
 
     class DataObject {
-        int clusterIndex = -1;
+        int clusterIndex = UNCLASSIFIED;
         double c_dist;
         double r_dist;
         boolean processed = false;

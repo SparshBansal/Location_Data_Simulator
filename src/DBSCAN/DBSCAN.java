@@ -5,6 +5,7 @@ import net.sf.javaml.core.Dataset;
 import net.sf.javaml.core.DefaultDataset;
 import net.sf.javaml.distance.DistanceMeasure;
 import net.sf.javaml.distance.NormalizedEuclideanDistance;
+import net.sf.javaml.tools.ListTools;
 
 import java.util.*;
 
@@ -33,40 +34,45 @@ public class DBSCAN extends AbstractDensityBasedClustering implements Clusterer 
     }
 
     private boolean expandCluster(AbstractDensityBasedClustering.DataObject dataObject) {
-        HashSet usedSeeds = new HashSet();
-        List seedList = this.epsilonRangeQuery(this.epsilon, dataObject);
-        usedSeeds.addAll(seedList);
-        if (seedList.size() < this.minPoints) {
-            dataObject.clusterIndex = -2;
+        List<DataObject> epsNeighbourhood = this.epsilonRangeQuery(this.epsilon, dataObject);
+
+        if (epsNeighbourhood.size() < minPoints) {
+            dataObject.clusterIndex = DataObject.NOISE;
             return false;
-        } else {
-            for (int seedListDataObject = 0; seedListDataObject < seedList.size(); ++seedListDataObject) {
-                AbstractDensityBasedClustering.DataObject seedListDataObject_Neighbourhood = (AbstractDensityBasedClustering.DataObject) seedList.get(seedListDataObject);
-                seedListDataObject_Neighbourhood.clusterIndex = this.clusterID;
-                if (seedListDataObject_Neighbourhood.equals(dataObject)) {
-                    seedList.remove(seedListDataObject);
-                    --seedListDataObject;
-                }
-            }
+        }
 
-            for (; seedList.size() > 0; seedList.remove(0)) {
-                AbstractDensityBasedClustering.DataObject var8 = (AbstractDensityBasedClustering.DataObject) seedList.get(0);
-                List var9 = this.epsilonRangeQuery(this.epsilon, var8);
-                if (var9.size() >= this.minPoints) {
-                    for (int i = 0; i < var9.size(); ++i) {
-                        AbstractDensityBasedClustering.DataObject p = (AbstractDensityBasedClustering.DataObject) var9.get(i);
-                        if ((p.clusterIndex == -1 || p.clusterIndex == -2) && p.clusterIndex == -1 && !usedSeeds.contains(p)) {
-                            seedList.add(p);
-                            usedSeeds.add(p);
-                        }
 
-                        p.clusterIndex = this.clusterID;
+        // All pts in epsNeighbourhood are in the same cluster
+        Iterator<DataObject> iterator = epsNeighbourhood.iterator();
+        while (iterator.hasNext()) {
+            DataObject currentPoint = iterator.next();
+            currentPoint.clusterIndex = this.clusterID;
+        }
+
+        epsNeighbourhood.remove(dataObject);
+
+        Queue<DataObject> queue = new LinkedList<>();
+        queue.addAll(epsNeighbourhood);
+
+        while (!queue.isEmpty()) {
+            DataObject neighbouringPoint = queue.remove();
+            List<DataObject> neighbourhood = this.epsilonRangeQuery(this.epsilon, neighbouringPoint);
+
+            if (neighbourhood.size() < minPoints)
+                continue;
+            else {
+                Iterator<DataObject> iterator1 = neighbourhood.iterator();
+                while (iterator1.hasNext()) {
+                    DataObject newObject = iterator1.next();
+                    if (newObject.clusterIndex == DataObject.NOISE || newObject.clusterIndex < 0) {
+                        newObject.clusterIndex = this.clusterID;
+                        queue.add(newObject);
                     }
                 }
             }
-
-            return true;
         }
+
+        return true;
     }
 
     public Dataset[] cluster(Dataset data) {
@@ -83,31 +89,37 @@ public class DBSCAN extends AbstractDensityBasedClustering implements Clusterer 
         }
 
         Collections.shuffle(this.dataset);
-        ArrayList var5 = new ArrayList();
-        Iterator i$ = this.dataset.iterator();
+        Iterator datasetIterator = dataset.iterator();
 
-        while (i$.hasNext()) {
-            AbstractDensityBasedClustering.DataObject dataObject = (AbstractDensityBasedClustering.DataObject) i$.next();
-            if (dataObject.clusterIndex == -1 && this.expandCluster(dataObject)) {
-                var5.add(this.extract(this.clusterID));
-                ++this.clusterID;
+        while (datasetIterator.hasNext()) {
+            DataObject currentPoint = (DataObject) datasetIterator.next();
+            if (currentPoint.clusterIndex == DataObject.NOISE || currentPoint.clusterIndex >= 0)
+                continue;
+            else {
+                if (expandCluster(currentPoint)) {
+                    this.clusterID++;
+                    System.out.println("Cluster : " + clusterID);
+                }
+
             }
         }
 
-        return (Dataset[]) var5.toArray(new Dataset[0]);
+        return extractClusters();
     }
 
-    private Dataset extract(int clusterID) {
-        DefaultDataset cluster = new DefaultDataset();
-        Iterator i$ = this.dataset.iterator();
+    private Dataset[] extractClusters() {
+        Dataset[] clusters = new Dataset[this.clusterID];
+        for (int i = 0; i < this.clusterID; i++)
+            clusters[i] = new DefaultDataset();
+        Iterator<DataObject> iterator = this.dataset.iterator();
 
-        while (i$.hasNext()) {
-            AbstractDensityBasedClustering.DataObject dataObject = (AbstractDensityBasedClustering.DataObject) i$.next();
-            if (dataObject.clusterIndex == clusterID) {
-                cluster.add(dataObject.instance);
+        while (iterator.hasNext()) {
+            DataObject currentPoint = iterator.next();
+            if (currentPoint.clusterIndex >= 0) {
+                clusters[currentPoint.clusterIndex].add(currentPoint.instance);
             }
-        }
 
-        return cluster;
+        }
+        return clusters;
     }
 }
