@@ -1,3 +1,4 @@
+import DBSCAN.DBSCAN;
 import com.sun.org.apache.bcel.internal.generic.BREAKPOINT;
 import com.sun.org.apache.xpath.internal.axes.IteratorPool;
 import net.sf.javaml.clustering.Clusterer;
@@ -275,7 +276,7 @@ public class Simulator {
         Dataset mlDataset = createMLDataset();
 
         // Big test time , lets feed the data into the algorithm
-        Clusterer dbscanClusterer = new DensityBasedSpatialClustering(0.01,12);
+        Clusterer dbscanClusterer = new DBSCAN(0.01,4);
         Dataset[] clusters = dbscanClusterer.cluster(mlDataset);
 
         XYSeriesCollection graphData = new XYSeriesCollection();
@@ -309,7 +310,6 @@ public class Simulator {
         XYPlot xyPlot = (XYPlot) chart.getPlot();
         XYItemRenderer renderer = xyPlot.getRenderer();
         renderer.setSeriesShape(0, ellipse2D);
-        ChartFrame chartFrame = new ChartFrame("Location Chart Frame", chart);
 
         for (int i = 0; i < clusters.length; i++) {
             Random random = new Random();
