@@ -21,6 +21,7 @@ import org.jfree.util.ShapeUtilities;
 
 import java.awt.*;
 import java.awt.geom.Ellipse2D;
+import java.io.*;
 import java.time.*;
 import java.util.*;
 import java.util.List;
@@ -210,25 +211,25 @@ public class Simulator {
                 boolean willLeaveWorkEarly = (random.nextInt(2) == 1);
                 boolean willArriveAtHomeEarly = (random.nextInt(2) == 1);
 
-                if (willLeaveHomeEarly){
+                if (willLeaveHomeEarly) {
                     leavingFromHomeTime = LEAVING_TIME.minusMinutes(leaving_from_home_time_noise);
                 } else {
                     leavingFromHomeTime = LEAVING_TIME.plusMinutes(leaving_from_home_time_noise);
                 }
 
-                if (willArriveAtWorkEarly){
+                if (willArriveAtWorkEarly) {
                     arrivingAtWorkTime = WORK_TIME_START.minusMinutes(arriving_at_work_time_noise);
                 } else {
                     arrivingAtWorkTime = WORK_TIME_START.plusMinutes(arriving_at_work_time_noise);
                 }
 
-                if (willLeaveWorkEarly){
+                if (willLeaveWorkEarly) {
                     leavingFromWorkTime = WORK_TIME_END.minusMinutes(leaving_from_work_time_noise);
                 } else {
                     leavingFromWorkTime = WORK_TIME_END.plusMinutes(leaving_from_work_time_noise);
                 }
 
-                if (willArriveAtHomeEarly){
+                if (willArriveAtHomeEarly) {
                     arrivingAtHomeTime = ARRIVING_TIME.minusMinutes(arriving_at_home_time_noise);
                 } else {
                     arrivingAtHomeTime = ARRIVING_TIME.plusMinutes(arriving_at_home_time_noise);
@@ -273,10 +274,10 @@ public class Simulator {
         System.out.println("Simulation Ended...");
 
         // Create instances from the dataset for the learning algorithm
-        Dataset mlDataset = createMLDataset();
+        Dataset mlDataset = createMLDatasetFromFile();
 
         // Big test time , lets feed the data into the algorithm
-        Clusterer dbscanClusterer = new DBSCAN(0.01,4);
+        Clusterer dbscanClusterer = new DBSCAN(0.01, 4);
         Dataset[] clusters = dbscanClusterer.cluster(mlDataset);
 
         XYSeriesCollection graphData = new XYSeriesCollection();
@@ -313,9 +314,9 @@ public class Simulator {
 
         for (int i = 0; i < clusters.length; i++) {
             Random random = new Random();
-            Paint paint  = new ChartColor(random.nextInt(256) , random.nextInt(256) , random.nextInt(256));
-            renderer.setSeriesShape(i,ellipse2D);
-            renderer.setSeriesPaint(i ,paint);
+            Paint paint = new ChartColor(random.nextInt(256), random.nextInt(256), random.nextInt(256));
+            renderer.setSeriesShape(i, ellipse2D);
+            renderer.setSeriesPaint(i, paint);
         }
 
         ChartFrame chartFrame = new ChartFrame("Location Chart Frame", chart);
@@ -383,6 +384,62 @@ public class Simulator {
         }
         result.addSeries(series);
         return result;
+    }
+
+    private static XYDataset createDatasetFromFile() {
+        File file = new File("C:\\Users\\Sparsh Bansal\\Downloads\\SHAREit\\2014818\\file\\Location_Data_File");
+
+        XYSeriesCollection result = new XYSeriesCollection();
+        XYSeries series = new XYSeries("Location Data");
+
+        if (file.exists()) {
+
+            try {
+                FileInputStream fis = new FileInputStream(file);
+                DataInputStream dis = new DataInputStream(fis);
+                double latitude;
+                double longitude;
+                while ((latitude = dis.readDouble()) != -1) {
+                    longitude = dis.readDouble();
+                    series.add(latitude, longitude);
+                }
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            result.addSeries(series);
+        }
+        return result;
+    }
+
+    private static Dataset createMLDatasetFromFile() {
+        Dataset mlDataset = new DefaultDataset();
+        File file = new File("C:\\Users\\Sparsh Bansal\\Downloads\\SHAREit\\2014818\\file\\Location_Data_File");
+
+        if (file.exists()) {
+
+            try {
+                FileInputStream fis = new FileInputStream(file);
+                DataInputStream dis = new DataInputStream(fis);
+                double latitude;
+                double longitude;
+                while ((latitude = dis.readDouble()) != -1) {
+                    longitude = dis.readDouble();
+
+                    Instance instance = new SparseInstance(2);
+
+                    instance.put(KEY_X_COORDINATE_ATTRIBUTE, latitude);
+                    instance.put(KEY_Y_COORDINATE_ATTRIBUTE, longitude);
+                    mlDataset.add(instance);
+                }
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        return mlDataset;
     }
 
     // Simulation will be performed on separate thread
@@ -506,7 +563,7 @@ public class Simulator {
                             }
                             numSteps--;
                         }
-                        final int locationNoise = new Random().nextInt(MAX_LOCATION_NOISE_WHILE_TRAVELLING+1);
+                        final int locationNoise = new Random().nextInt(MAX_LOCATION_NOISE_WHILE_TRAVELLING + 1);
                         final int randomTheta = new Random().nextInt(361);
                         xCoordinate = xCoordinate + (locationNoise * Math.cos(Math.toRadians(randomTheta)));
                         yCoordinate = yCoordinate + (locationNoise * Math.sin(Math.toRadians(randomTheta)));
